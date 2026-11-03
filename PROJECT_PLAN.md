@@ -181,7 +181,7 @@ stock-service 消费 order-created
 ### P1 工程骨架 + 服务注册
 
 1. 建父 POM 与 7 个模块，统一依赖版本。→ 操作指南：[P1-01 父 POM](docs/P1-01-parent-pom-guide.md)、[P1-02 公共模块](docs/P1-02-common-api-modules.md)
-2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。
+2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。→ 首个服务指南：[P1-04 mall-user](docs/P1-04-user-service.md)
 3. Gateway 接入 Nacos，配置按服务名路由。→ 操作指南：[P1-03 Gateway](docs/P1-03-gateway.md)
 
 **验收**：Nacos 服务列表出现 4 个服务；`http://localhost:8080/api/product/list` 能路由到商品服务；停掉某服务后 Nacos 实例消失。

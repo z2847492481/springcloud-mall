@@ -224,6 +224,10 @@ d:\Projects\Java\springcloud-mall\
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.13.0</version>
+                    <configuration>
+                        <!-- 未继承 Boot parent，需显式开启，Spring MVC 才能反射拿到参数名 -->
+                        <parameters>true</parameters>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -241,6 +245,7 @@ d:\Projects\Java\springcloud-mall\
 - 父工程如果直接把 `spring-boot-maven-plugin` 放进 `<build><plugins>`，会被所有子模块继承并尝试执行 `repackage`，导致 `mall-common`、`mall-api` 这类 jar 库模块也被打成交付包，甚至构建失败。
 - 放在 `pluginManagement` 只锁定版本，哪个模块是启动服务，就在它自己的 POM 里声明一次插件。
 - 因为本项目没有继承 `spring-boot-starter-parent`，插件不会自动绑定 `repackage`。如果只声明插件、不配 `<executions>`，打出来的 jar 只有 3 KB，`java -jar` 会报「没有主清单属性」。所以 `repackage` 的执行必须显式写在 `pluginManagement` 里。
+- 同理，Boot parent 默认开启的 `-parameters` 编译参数也要自己补。否则 Controller 里写 `@PathVariable Long id`（不写名称）会在运行时报 `Name for argument ... not specified`，需要给每个注解显式写名称或开启该参数。
 
 ---
 
@@ -354,6 +359,7 @@ IDEA 侧确认：Maven 工具窗口无红色报错，`Lifecycle → validate` �
 | MySQL 驱动找不到 | 用了旧坐标 `mysql-connector-java` | 用 `com.mysql:mysql-connector-j`，版本交给 Boot BOM |
 | 所有子模块都被打成可执行 jar | 父 POM 在 `<plugins>` 里声明了 Boot 插件 | 移到 `<pluginManagement>`，启动模块自行声明 |
 | IDEA 不自动下载依赖 | Maven 未同步或镜像慢 | Reload project；必要时在 `settings.xml` 配阿里云镜像 |
+| 运行时报 `Name for argument ... not specified` | 未开启 `-parameters`，注解里也没写名称 | 父 POM 已配置 `<parameters>true</parameters>` |
 | Lombok 报找不到符号 | 未开注解处理 | Settings → Compiler → Annotation Processors 勾选启用 |
 
 ### 可选：加快依赖下载（改 `settings.xml`，不改 POM）

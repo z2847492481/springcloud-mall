@@ -1,0 +1,23 @@
+####################################################################
+# mall-cloud 接口测试集合
+# IDEA 中点击每个请求左侧的绿色箭头即可执行
+# 约定：后续每新增/调整一个接口，都在这里补一条
+####################################################################
+
+### 网关健康检查
+GET http://localhost:8080/actuator/health
+
+### 用户服务健康检查（直连）
+GET http://localhost:8081/actuator/health
+
+### 查询用户（直连用户服务）
+GET http://localhost:8081/user/1
+
+### 查询用户（经网关路由）
+GET http://localhost:8080/api/user/1
+
+### Nacos：查询 dev 命名空间下的服务列表
+GET http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=20&namespaceId=dev
+
+### Nacos：查询 mall-user 实例
+GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-user&namespaceId=dev
