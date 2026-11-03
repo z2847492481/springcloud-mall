@@ -170,7 +170,8 @@ mall-api/src/main/java/com/mall/api/
 ## 五、后续服务模块的约定（现在不做，先知道）
 
 - 启动类统一放在 `com.mall.<服务名>`，例如 `com.mall.order`。
-- 启动类加 `scanBasePackages = "com.mall"`，否则扫描不到 `com.mall.common` 里的全局异常处理器。
+- 业务服务启动类加 `scanBasePackages = "com.mall"`，否则扫描不到 `com.mall.common` 里的全局异常处理器。
+- gateway 例外：不加 `scanBasePackages`，只扫描 `com.mall.gateway`。否则网关的路由异常会被全局异常处理器包装成 HTTP 200 + 业务码 500，丢失真实的 503。
 - 调用方服务在启动类加 `@EnableFeignClients(basePackages = "com.mall.api")`。
 
 ---

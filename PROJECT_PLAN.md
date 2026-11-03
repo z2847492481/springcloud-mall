@@ -172,7 +172,7 @@ stock-service 消费 order-created
 ### P0 环境准备（先解决阻塞项）
 
 1. ~~修复 `JAVA_HOME`~~：已完成，系统变量为 `D:\Tools\Java\21`，`mvn 3.9.15` + `Java 21.0.10` 验证通过。
-2. 在 WSL 新建目录 `~/docker/mall-cloud`，编写 `docker-compose.yml`，包含：Nacos、Kafka、Redis、XXL-JOB Admin（MySQL 复用已有容器）。
+2. 在 WSL 启动 Nacos（MySQL 外置存储），当前环境无 compose 插件，直接使用 `docker run`。→ 操作指南：[P0-02 Nacos 启动](docs/P0-02-nacos-docker-mysql.md)
 3. 初始化数据库：`mall_user`、`mall_product`、`mall_stock`、`mall_order`、`nacos_config`、`xxl_job`。
 4. 开放端口：8848/9848/9849、9092/9094、6379、8088、9999。
 
@@ -182,7 +182,7 @@ stock-service 消费 order-created
 
 1. 建父 POM 与 7 个模块，统一依赖版本。→ 操作指南：[P1-01 父 POM](docs/P1-01-parent-pom-guide.md)、[P1-02 公共模块](docs/P1-02-common-api-modules.md)
 2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。
-3. Gateway 接入 Nacos，配置按服务名路由。
+3. Gateway 接入 Nacos，配置按服务名路由。→ 操作指南：[P1-03 Gateway](docs/P1-03-gateway.md)
 
 **验收**：Nacos 服务列表出现 4 个服务；`http://localhost:8080/api/product/list` 能路由到商品服务；停掉某服务后 Nacos 实例消失。
 

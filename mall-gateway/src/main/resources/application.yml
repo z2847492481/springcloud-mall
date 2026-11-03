@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mall-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: dev
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: mall-user
+          uri: lb://mall-user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+        - id: mall-product
+          uri: lb://mall-product
+          predicates:
+            - Path=/api/product/**
+          filters:
+            - StripPrefix=1
+        - id: mall-stock
+          uri: lb://mall-stock
+          predicates:
+            - Path=/api/stock/**
+          filters:
+            - StripPrefix=1
+        - id: mall-order
+          uri: lb://mall-order
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always

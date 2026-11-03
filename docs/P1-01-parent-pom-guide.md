@@ -211,6 +211,14 @@ d:\Projects\Java\springcloud-mall\
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
                     <version>${spring-boot.version}</version>
+                    <executions>
+                        <!-- 未继承 spring-boot-starter-parent，需显式绑定 repackage -->
+                        <execution>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -232,6 +240,7 @@ d:\Projects\Java\springcloud-mall\
 
 - 父工程如果直接把 `spring-boot-maven-plugin` 放进 `<build><plugins>`，会被所有子模块继承并尝试执行 `repackage`，导致 `mall-common`、`mall-api` 这类 jar 库模块也被打成交付包，甚至构建失败。
 - 放在 `pluginManagement` 只锁定版本，哪个模块是启动服务，就在它自己的 POM 里声明一次插件。
+- 因为本项目没有继承 `spring-boot-starter-parent`，插件不会自动绑定 `repackage`。如果只声明插件、不配 `<executions>`，打出来的 jar 只有 3 KB，`java -jar` 会报「没有主清单属性」。所以 `repackage` 的执行必须显式写在 `pluginManagement` 里。
 
 ---
 
