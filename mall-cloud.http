@@ -16,8 +16,29 @@ GET http://localhost:8081/user/1
 ### 查询用户（经网关路由）
 GET http://localhost:8080/api/user/1
 
+### 商品服务健康检查（直连）
+GET http://localhost:8082/actuator/health
+
+### 查询商品（直连商品服务）
+GET http://localhost:8082/product/1
+
+### 商品列表（直连商品服务）
+GET http://localhost:8082/product/list?pageNum=1&pageSize=10
+
+### 商品列表按关键字搜索
+GET http://localhost:8082/product/list?keyword=%E9%94%AE%E7%9B%98&pageNum=1&pageSize=10
+
+### 查询商品（经网关路由）
+GET http://localhost:8080/api/product/1
+
+### 商品列表（经网关路由）
+GET http://localhost:8080/api/product/list?pageNum=1&pageSize=10
+
 ### Nacos：查询 dev 命名空间下的服务列表
 GET http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=20&namespaceId=dev
 
 ### Nacos：查询 mall-user 实例
 GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-user&namespaceId=dev
+
+### Nacos：查询 mall-product 实例
+GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-product&namespaceId=dev
