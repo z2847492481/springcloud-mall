@@ -64,8 +64,9 @@ d:\Projects\Java\springcloud-mall\
 | `mybatis-plus-spring-boot3-starter` | 3.5.7 | user / product / stock / order | Boot 3 必须用 `-spring-boot3-` 这个 artifact，旧的 `mybatis-plus-boot-starter` 不兼容 |
 | `xxl-job-core` | 2.4.1 | order-service | 执行器内嵌在业务服务中 |
 | `jjwt-api` / `jjwt-impl` / `jjwt-jackson` | 0.12.6 | user-service、gateway | 签发与校验 JWT；impl 和 jackson 是 runtime scope |
+| `lombok` | 1.18.36 | 所有模块 | Boot 3.2.4 默认管理 1.18.30，在本机 JDK 21 下注解处理不生效，需显式覆盖 |
 
-无需单独写版本、由 Boot BOM 管理的常用依赖：`mysql-connector-j`、`lombok`、`spring-boot-starter-validation`、`spring-kafka`、`spring-boot-starter-data-redis`、`spring-boot-starter-test`。
+无需单独写版本、由 Boot BOM 管理的常用依赖：`mysql-connector-j`、`spring-boot-starter-validation`、`spring-kafka`、`spring-boot-starter-data-redis`、`spring-boot-starter-test`。
 
 ### 3.3 内部模块（后续添加）
 
@@ -109,6 +110,7 @@ d:\Projects\Java\springcloud-mall\
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <xxl-job.version>2.4.1</xxl-job.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <lombok.version>1.18.36</lombok.version>
     </properties>
 
     <!--
@@ -146,6 +148,13 @@ d:\Projects\Java\springcloud-mall\
                 <version>${spring-cloud-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- 覆盖 Boot BOM 中的 Lombok 版本，适配 JDK 21 高版本补丁 -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
             </dependency>
 
             <!-- MyBatis-Plus（Spring Boot 3 专用 starter） -->

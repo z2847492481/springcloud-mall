@@ -74,6 +74,18 @@
             <artifactId>spring-web</artifactId>
         </dependency>
 
+        <!-- BindException 等校验相关类位于 spring-context -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- 全局异常处理与 TraceId 需要 slf4j 门面 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -118,6 +130,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
@@ -176,6 +194,7 @@ mall-api/src/main/java/com/mall/api/
 | `mvn` 报 "Child module ... does not exist" | `<module>` 名字与目录名不一致 | 按实际目录名改 |
 | gateway 启动报 Spring MVC 冲突 | common 引了 `starter-web` | common 只用 `spring-web` |
 | DTO 校验注解编译不过 | 缺 validation 依赖 | 确认 `mall-api` 引入了 `spring-boot-starter-validation` |
+| 编译报「找不到 getter/setter」 | Lombok 注解处理未生效 | 父 POM 已覆盖 Lombok 1.18.36；子模块需自行声明 `lombok`（provided） |
 
 ---
 
