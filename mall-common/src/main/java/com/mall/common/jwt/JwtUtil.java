@@ -1,5 +1,6 @@
 package com.mall.common.jwt;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -30,5 +31,16 @@ public class JwtUtil {
                 .expiration(expiration)
                 .signWith(key)
                 .compact();
+    }
+
+    /**
+     * 校验签名与过期时间，失败时抛出 JwtException。
+     */
+    public Claims parseToken(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

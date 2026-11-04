@@ -13,8 +13,9 @@ GET http://localhost:8081/actuator/health
 ### 查询用户（直连用户服务）
 GET http://localhost:8081/user/1
 
-### 查询用户（经网关路由）
+### 查询用户（经网关路由，需 token）
 GET http://localhost:8080/api/user/1
+Authorization: Bearer {{token}}
 
 ### 用户登录（直连用户服务）
 POST http://localhost:8081/user/login
@@ -37,6 +38,9 @@ Content-Type: application/json
 > {%
 client.global.set("token", response.body.data.token);
 %}
+
+### 未携带 token 访问受保护接口（预期 401）
+GET http://localhost:8080/api/order/TEST-401
 
 ### 商品服务健康检查（直连）
 GET http://localhost:8082/actuator/health
@@ -79,8 +83,9 @@ Content-Type: application/json
   "quantity": 2
 }
 
-### 预占库存（经网关路由）
+### 预占库存（经网关路由，需 token）
 POST http://localhost:8080/api/stock/lock
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -89,8 +94,9 @@ Content-Type: application/json
   "quantity": 2
 }
 
-### 释放预占库存（经网关路由）
+### 释放预占库存（经网关路由，需 token）
 POST http://localhost:8080/api/stock/unlock
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -132,8 +138,9 @@ POST http://localhost:8084/order/{{orderNo}}/ship
 ### 仓库确认出库（直连 WMS）
 POST http://localhost:8085/wms/outbound/{{orderNo}}
 
-### 创建订单（经网关路由）
+### 创建订单（经网关路由，需 token）
 POST http://localhost:8080/api/order/create
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
@@ -146,17 +153,21 @@ Content-Type: application/json
   ]
 }
 
-### 查询订单（经网关路由）
+### 查询订单（经网关路由，需 token）
 GET http://localhost:8080/api/order/{{orderNo}}
+Authorization: Bearer {{token}}
 
-### 模拟支付（经网关路由）
+### 模拟支付（经网关路由，需 token）
 POST http://localhost:8080/api/order/{{orderNo}}/pay
+Authorization: Bearer {{token}}
 
-### 订单发货（经网关路由）
+### 订单发货（经网关路由，需 token）
 POST http://localhost:8080/api/order/{{orderNo}}/ship
+Authorization: Bearer {{token}}
 
-### 仓库确认出库（经网关路由）
+### 仓库确认出库（经网关路由，需 token）
 POST http://localhost:8080/api/wms/outbound/{{orderNo}}
+Authorization: Bearer {{token}}
 
 ### Nacos：查询 dev 命名空间下的服务列表
 GET http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=20&namespaceId=dev
