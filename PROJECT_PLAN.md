@@ -22,7 +22,7 @@
 | P2 Feign | ✅ | 下单链路 order → product → stock、超时、`fallbackFactory` 降级、Feign 日志、关闭 LB 重试、双实例负载均衡均已验证 |
 | P3 Kafka | ✅ | `order-created` / `order-shipped` / `order-cancelled`；库存消费发货事件并确认扣减，`CONFIRM` 幂等 + 手动 ack |
 | P4 XXL-JOB | ✅ | 订单内嵌执行器、超时关单任务；库存消费取消事件释放预占，`RELEASE` 幂等 |
-| P5 网关增强 | 🟡 | `mall-user` 登录 + JWT 签发、Gateway 全局 JWT 过滤器已完成；Redis 限流、Nacos 配置中心、TraceId、压测未开始 |
+| P5 网关增强 | 🟡 | 登录 + JWT、Gateway 全局鉴权、Redis 限流已完成；跨域、Nacos 配置中心、TraceId、压测未开始 |
 | P6 扩展 | ⬜ | Sentinel、Seata、链路追踪（可选） |
 
 **已跑通的主链路**
@@ -268,14 +268,15 @@ POST /api/order/create
 
 ### P5 网关增强 + 配置中心 + 可观测
 
-> 当前状态：🟡 鉴权链路已完成，其余未开始。
+> 当前状态：🟡 鉴权与限流已完成，其余未开始。
 
 0. `mall-user` 新增 `POST /user/login`，校验用户名密码后签发 JWT（HS256，默认 120 分钟）。✅
 1. Gateway 全局 JWT 过滤器：白名单放行、校验签名与过期、`X-User-Id` 透传。✅
-2. Gateway Redis 限流 + 跨域。
-3. Nacos Config：抽取 `mall-common.yaml` 共享配置，演示修改后动态刷新（`@RefreshScope`）。
-4. 统一 Result、全局异常处理、TraceId（MDC + Feign 拦截器 + Kafka header）。
-5. 关键接口用 `curl` 或 JMeter 做一次压测，记录 QPS 与瓶颈。
+2. Gateway Redis 限流：令牌桶（10/s，突发 20），已登录按 userId、未登录按 IP。✅
+3. Gateway 跨域配置。
+4. Nacos Config：抽取 `mall-common.yaml` 共享配置，演示修改后动态刷新（`@RefreshScope`）。
+5. 统一 Result、全局异常处理、TraceId（MDC + Feign 拦截器 + Kafka header）。
+6. 关键接口用 `curl` 或 JMeter 做一次压测，记录 QPS 与瓶颈。
 
 **验收**：无 Token 请求被 401 拦截；超阈值返回 429；Nacos 改配置后服务日志即时生效；一次下单能按 traceId 串起全部日志。
 

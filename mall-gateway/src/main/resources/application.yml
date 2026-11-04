@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: mall-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
   cloud:
     nacos:
       discovery:
@@ -13,6 +17,15 @@ spring:
       discovery:
         locator:
           enabled: false
+      # 默认过滤器对所有路由生效：Redis 令牌桶限流
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            redis-rate-limiter.replenishRate: 10
+            redis-rate-limiter.burstCapacity: 20
+            redis-rate-limiter.requestedTokens: 1
+            key-resolver: "#{@userKeyResolver}"
+            status-code: TOO_MANY_REQUESTS
       routes:
         - id: mall-user
           uri: lb://mall-user
