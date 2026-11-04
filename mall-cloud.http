@@ -34,6 +34,49 @@ GET http://localhost:8080/api/product/1
 ### 商品列表（经网关路由）
 GET http://localhost:8080/api/product/list?pageNum=1&pageSize=10
 
+### 库存服务健康检查（直连）
+GET http://localhost:8083/actuator/health
+
+### 预占库存（直连库存服务）
+POST http://localhost:8083/stock/lock
+Content-Type: application/json
+
+{
+  "orderNo": "TEST-001",
+  "productId": 1,
+  "quantity": 2
+}
+
+### 释放预占库存（直连库存服务）
+POST http://localhost:8083/stock/unlock
+Content-Type: application/json
+
+{
+  "orderNo": "TEST-001",
+  "productId": 1,
+  "quantity": 2
+}
+
+### 预占库存（经网关路由）
+POST http://localhost:8080/api/stock/lock
+Content-Type: application/json
+
+{
+  "orderNo": "TEST-001",
+  "productId": 1,
+  "quantity": 2
+}
+
+### 释放预占库存（经网关路由）
+POST http://localhost:8080/api/stock/unlock
+Content-Type: application/json
+
+{
+  "orderNo": "TEST-001",
+  "productId": 1,
+  "quantity": 2
+}
+
 ### Nacos：查询 dev 命名空间下的服务列表
 GET http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=20&namespaceId=dev
 
@@ -42,3 +85,6 @@ GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-user&namesp
 
 ### Nacos：查询 mall-product 实例
 GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-product&namespaceId=dev
+
+### Nacos：查询 mall-stock 实例
+GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-stock&namespaceId=dev
