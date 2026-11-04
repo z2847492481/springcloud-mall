@@ -139,7 +139,10 @@ public class OrderServiceImpl implements OrderService {
 
     private ProductDTO queryProduct(Long productId) {
         Result<ProductDTO> result = productApi.getById(productId);
-        if (result == null || result.getCode() != ErrorCode.SUCCESS.getCode() || result.getData() == null) {
+        if (result == null || result.getCode() == ErrorCode.SERVICE_UNAVAILABLE.getCode()) {
+            throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE);
+        }
+        if (result.getCode() != ErrorCode.SUCCESS.getCode() || result.getData() == null) {
             throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
         }
         ProductDTO product = result.getData();

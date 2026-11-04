@@ -10,11 +10,17 @@ spring:
         server-addr: localhost:8848
         namespace: dev
     openfeign:
+      circuitbreaker:
+        enabled: true
       client:
         config:
           default:
             connect-timeout: 3000
             read-timeout: 5000
+            logger-level: basic
+    loadbalancer:
+      retry:
+        enabled: false
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/mall_order?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
@@ -59,3 +65,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  level:
+    com.mall.api: debug
