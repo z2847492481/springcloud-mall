@@ -23,6 +23,12 @@ mybatis-plus:
       id-type: auto
       table-prefix: t_
 
+mall:
+  jwt:
+    # HS256 密钥长度必须 >= 32 字节，后续迁移到 Nacos 配置中心
+    secret: mall-cloud-demo-jwt-secret-key-0123456789abcdef
+    expire-minutes: 120
+
 management:
   endpoints:
     web:

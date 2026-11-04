@@ -22,7 +22,7 @@
 | P2 Feign | ✅ | 下单链路 order → product → stock、超时、`fallbackFactory` 降级、Feign 日志、关闭 LB 重试、双实例负载均衡均已验证 |
 | P3 Kafka | ✅ | `order-created` / `order-shipped` / `order-cancelled`；库存消费发货事件并确认扣减，`CONFIRM` 幂等 + 手动 ack |
 | P4 XXL-JOB | ✅ | 订单内嵌执行器、超时关单任务；库存消费取消事件释放预占，`RELEASE` 幂等 |
-| P5 网关增强 | ⬜ | JWT 鉴权、Redis 限流、Nacos 配置中心、TraceId、压测均未开始 |
+| P5 网关增强 | 🟡 | `mall-user` 登录 + JWT 签发已完成；网关鉴权、Redis 限流、Nacos 配置中心、TraceId、压测均未开始 |
 | P6 扩展 | ⬜ | Sentinel、Seata、链路追踪（可选） |
 
 **已跑通的主链路**
@@ -268,8 +268,9 @@ POST /api/order/create
 
 ### P5 网关增强 + 配置中心 + 可观测
 
-> 当前状态：⬜ 未开始。
+> 当前状态：🟡 已开始。登录 + JWT 签发已完成，其余未开始。
 
+0. `mall-user` 新增 `POST /user/login`，校验用户名密码后签发 JWT（HS256，默认 120 分钟）。✅
 1. Gateway 全局 JWT 过滤器 + Redis 限流 + 跨域。
 2. Nacos Config：抽取 `mall-common.yaml` 共享配置，演示修改后动态刷新（`@RefreshScope`）。
 3. 统一 Result、全局异常处理、TraceId（MDC + Feign 拦截器 + Kafka header）。

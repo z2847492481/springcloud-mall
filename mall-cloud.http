@@ -16,6 +16,28 @@ GET http://localhost:8081/user/1
 ### 查询用户（经网关路由）
 GET http://localhost:8080/api/user/1
 
+### 用户登录（直连用户服务）
+POST http://localhost:8081/user/login
+Content-Type: application/json
+
+{
+  "username": "demo",
+  "password": "123456"
+}
+
+### 用户登录（经网关路由）
+POST http://localhost:8080/api/user/login
+Content-Type: application/json
+
+{
+  "username": "demo",
+  "password": "123456"
+}
+
+> {%
+client.global.set("token", response.body.data.token);
+%}
+
 ### 商品服务健康检查（直连）
 GET http://localhost:8082/actuator/health
 
