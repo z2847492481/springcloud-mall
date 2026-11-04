@@ -13,7 +13,37 @@
 
 **明确不做**：完整商城前端、真实支付对接、复杂权限体系、K8s 部署、Seata 分布式事务（列为可选扩展）。
 
+### 当前进度（2026-11-04）
+
+| 阶段 | 状态 | 完成情况 |
+| --- | --- | --- |
+| P0 环境 | ✅ | JDK/Maven、Nacos（MySQL 存储）、Kafka（KRaft + Kafka UI）、XXL-JOB（host 网络）、MySQL 业务库已就绪 |
+| P1 骨架 | ✅ | 父 POM、`mall-common`、`mall-api`、网关，以及 user/product/stock/order/wms 五个服务全部注册 Nacos `dev` |
+| P2 Feign | 🟡 | 下单链路 order → product → stock、超时配置已完成；`fallbackFactory`、Feign 日志、双实例负载均衡验证未做 |
+| P3 Kafka | ✅ | `order-created` / `order-shipped` / `order-cancelled`；库存消费发货事件并确认扣减，`CONFIRM` 幂等 + 手动 ack |
+| P4 XXL-JOB | ✅ | 订单内嵌执行器、超时关单任务；库存消费取消事件释放预占，`RELEASE` 幂等 |
+| P5 网关增强 | ⬜ | JWT 鉴权、Redis 限流、Nacos 配置中心、TraceId、压测均未开始 |
+| P6 扩展 | ⬜ | Sentinel、Seata、链路追踪（可选） |
+
+**已跑通的主链路**
+
+```
+下单（Feign 预占库存）→ 支付（CREATED→PAID）
+  → WMS 确认出库（PAID→SHIPPED，发 order-shipped）
+  → 库存消费后 locked-，真正扣减
+超时未支付（XXL-JOB）→ CLOSED，发 order-cancelled
+  → 库存消费后 locked-、available+，释放预占
+```
+
+**已验证的幂等与补偿**
+
+- 库存确认扣减：`t_stock_log(CONFIRM, orderNo, productId)` 唯一键
+- 库存释放：`t_stock_log(RELEASE, orderNo, productId)` 唯一键
+- 出库单：`t_outbound.order_no` 唯一键
+- 下单库存补偿：某件商品预占失败或订单落库失败时，回滚已预占的库存
+
 ---
+
 
 ## 二、技术栈与版本矩阵
 
@@ -46,11 +76,12 @@
 
 简化电商下单：
 
-1. 用户登录拿到 JWT。
-2. 用户下单：订单服务校验商品、锁定库存、创建订单。
-3. 订单创建成功后，通过 Kafka 异步通知库存服务扣减库存。
-4. 订单 15 分钟未支付，由 XXL-JOB 定时任务扫描并关单，同时回滚库存。
-5. 模拟支付回调，订单状态变更为已支付。
+1. 用户登录拿到 JWT（P5 实现）。
+2. 用户下单：订单服务校验商品、预占库存、创建订单（状态 `CREATED`）。
+3. 用户支付：订单状态 `CREATED → PAID`。
+4. 仓库确认出库：WMS 调用订单 `ship`（`PAID → SHIPPED`），发送 `order-shipped`，库存服务消费后把 `locked` 转为真正扣减。
+5. 订单 15 分钟未支付：XXL-JOB 关单（`CREATED → CLOSED`），发送 `order-cancelled`，库存服务释放预占。
+6. `order-created` 仍然生产，预留给通知、统计等下游，不驱动库存扣减。
 
 ### 3.2 模块与端口
 
@@ -97,6 +128,10 @@
 
   XXL-JOB 调度中心 :8088 ──调度──▶ mall-order 内嵌执行器 :9999
   Nacos :8848/9848/9849     MySQL :3306     Redis :6379
+
+  补充：WMS :8085 ──Feign ship──▶ mall-order
+        WMS ──Kafka order-shipped──▶ mall-stock（确认扣减）
+        XXL-JOB 关单 ──Kafka order-cancelled──▶ mall-stock（释放预占）
 ```
 
 ### 3.4 表结构（最小可用）
@@ -104,15 +139,17 @@
 | 库 | 表 | 关键字段 |
 | --- | --- | --- |
 | `mall_user` | `t_user` | id, username, password, phone, status, create_time |
-| `mall_product` | `t_product` | id, name, price, stock_flag, status, create_time |
+| `mall_product` | `t_product` | id, name, price, status, create_time |
 | `mall_stock` | `t_stock` | id, product_id, available, locked, version |
+| `mall_stock` | `t_stock_log` | id, biz_type, order_no, product_id, quantity |
 | `mall_order` | `t_order` | id, order_no, user_id, total_amount, status, create_time, pay_time |
+| `mall_order` | `t_order_item` | id, order_id, product_id, product_name, price, quantity |
 | `mall_wms` | `t_outbound` | id, order_no, status, create_time |
-| `mall_order` | `t_order_item` | id, order_id, product_id, price, quantity |
 
 - 每个服务独立库，符合「数据库按服务拆分」的面试讲法。
 - `t_stock` 用 `available / locked` 两字段表达预占与扣减，`version` 字段预留乐观锁。
-- 订单状态：`CREATED / PAID / CANCELLED / CLOSED`。
+- 订单状态：`CREATED / PAID / SHIPPED / CANCELLED / CLOSED`。
+- `t_stock_log` 的 `biz_type` 取 `CONFIRM`（发货扣减）/ `RELEASE`（取消释放）/ `RETURN`（售后退回）。
 
 ---
 
@@ -127,7 +164,7 @@ POST /api/order/create
   3. Feign 调 product-service：查商品与价格（校验上架状态）
   4. Feign 调 stock-service：预占库存（available - n, locked + n）
   5. order-service 本地事务写入 t_order + t_order_item
-  6. 发送 Kafka 消息 order-created（key = orderNo）
+  6. 事务提交后发送 order-created（通知/统计用，不驱动库存）
   7. 返回订单号
 ```
 
@@ -186,26 +223,30 @@ POST /api/order/create
 5. Kafka 部署（KRaft 单节点 + 双 listener）→ 指南：[P0-03 Kafka](docs/P0-03-kafka-docker.md)
 6. XXL-JOB 调度中心部署（MySQL 存储）→ 指南：[P0-04 XXL-JOB](docs/P0-04-xxl-job-docker.md)
 
-**验收**：`mvn -v` 正常；Nacos 控制台能打开；Windows 侧可用 Kafka 客户端连接 `localhost:9094`；MySQL 四个库建好。
+**验收**：`mvn -v` 正常；Nacos 控制台能打开；Windows 侧可用 Kafka 客户端连接 `localhost:9094`；MySQL 业务库与 `nacos_config`、`xxl_job` 都已建好。
 
 ### P1 工程骨架 + 服务注册
 
 1. 建父 POM 与 8 个模块，统一依赖版本。→ 操作指南：[P1-01 父 POM](docs/P1-01-parent-pom-guide.md)、[P1-02 公共模块](docs/P1-02-common-api-modules.md)
-2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。→ 指南：[P1-04 mall-user](docs/P1-04-user-service.md)、[P1-05 mall-product](docs/P1-05-product-service.md)、[P1-06 mall-stock](docs/P1-06-stock-service.md)、[P1-07 mall-order](docs/P1-07-order-service.md)、[P1-08 mall-wms](docs/P1-08-wms-service.md)
+2. 五个业务服务（user/product/stock/order/wms）接入 Nacos Discovery，暴露 `/actuator/health`。→ 指南：[P1-04 mall-user](docs/P1-04-user-service.md)、[P1-05 mall-product](docs/P1-05-product-service.md)、[P1-06 mall-stock](docs/P1-06-stock-service.md)、[P1-07 mall-order](docs/P1-07-order-service.md)、[P1-08 mall-wms](docs/P1-08-wms-service.md)
 3. Gateway 接入 Nacos，配置按服务名路由。→ 操作指南：[P1-03 Gateway](docs/P1-03-gateway.md)
 
 **验收**：Nacos 服务列表出现 5 个服务；`http://localhost:8080/api/product/list` 能路由到商品服务；停掉某服务后 Nacos 实例消失。
 
 ### P2 同步调用链路（OpenFeign）
 
-1. `mall-api` 定义 Feign 接口与 DTO。
-2. 下单接口串起 order → product → stock。
-3. 配置 Feign 超时、重试、日志级别、`fallbackFactory`。
-4. 启动两个 user-service 实例（8090/8091）验证负载均衡。
+> 当前状态：🟡 基础链路已完成。`order → product → stock` 已跑通，超时配置已加；剩余降级、日志和负载均衡验证。
+
+1. `mall-api` 定义 Feign 接口与 DTO。✅
+2. 下单接口串起 order → product → stock。✅
+3. 配置 Feign 超时、重试、日志级别、`fallbackFactory`。🟡 仅完成超时
+4. 启动两个 stock 实例（8090/8091）验证负载均衡。⬜
 
 **验收**：下单成功落库；手动停掉 product-service 后调用返回降级结果而不是 500；日志能看到 Feign 选择了不同实例。
 
 ### P3 异步链路（Kafka）
+
+> 当前状态：✅ 已完成并验证（发货扣减 + 取消释放 + 幂等 + 手动 ack）。
 
 1. 创建 topic：`order-created`、`order-shipped`、`order-cancelled`（分区数 3）。
 2. order-service 生产 `order-created`，WMS 生产 `order-shipped`（key=orderNo）。
@@ -216,14 +257,18 @@ POST /api/order/create
 
 ### P4 定时调度（XXL-JOB）
 
+> 当前状态：✅ 已完成并验证。
+
 1. 部署调度中心，初始化 `xxl_job` 库。→ [P0-04 部署](docs/P0-04-xxl-job-docker.md)、[P4-01 接入与超时关单](docs/P4-01-xxl-job-integration.md)
-2. order-service 内嵌执行器，注册到调度中心。
-3. 编写「关闭超时订单」任务，cron 每 2 分钟，分片广播。
-4. 配置失败重试与阻塞策略，观察调度日志。
+2. order-service 内嵌执行器，注册到调度中心。✅
+3. 编写「关闭超时订单」任务，cron 每 2 分钟，每批最多 100 笔。✅
+4. 配置失败重试与阻塞策略，观察调度日志。✅
 
 **验收**：手工造一条 20 分钟前的 CREATED 订单，任务执行后订单变 CLOSED、库存回滚；调度中心能看到执行日志与耗时。
 
 ### P5 网关增强 + 配置中心 + 可观测
+
+> 当前状态：⬜ 未开始。
 
 1. Gateway 全局 JWT 过滤器 + Redis 限流 + 跨域。
 2. Nacos Config：抽取 `mall-common.yaml` 共享配置，演示修改后动态刷新（`@RefreshScope`）。
@@ -234,6 +279,8 @@ POST /api/order/create
 
 ### P6 面试复盘（可选扩展）
 
+> 当前状态：⬜ 可选，视面试准备时间决定。
+
 - 加 Sentinel：熔断降级、热点参数限流（替代手写 fallback）。
 - 加 Seata：对比 AT 模式与「本地消息表 + Kafka」最终一致方案。
 - 加链路追踪：Micrometer Tracing + Zipkin。
@@ -243,15 +290,18 @@ POST /api/order/create
 
 ## 六、WSL 部署设计要点
 
-### 6.1 Compose 服务与端口
+### 6.1 中间件与端口（实际使用 `docker run`）
 
-| 服务 | 镜像（示例） | 端口映射 | 备注 |
+| 服务 | 镜像 | 端口 | 备注 |
 | --- | --- | --- | --- |
-| mysql | `mysql:8.0` | 3306 | 已存在，复用 |
-| nacos | `nacos/nacos-server:v2.3.2` | 8848, 9848, 9849 | `MODE=standalone`，2.x 必须映射 gRPC 端口 |
-| kafka | `bitnami/kafka:3.7` | 9094 | KRaft 单节点 |
-| redis | `redis:7-alpine` | 6379 | 网关限流用 |
-| xxl-job-admin | `xuxueli/xxl-job-admin:2.4.1` | 8088 | 连 WSL 内 MySQL |
+| mysql | `mysql:8.0` | 3306 | 已有，复用；业务库 + `nacos_config` + `xxl_job` |
+| nacos | `nacos/nacos-server:v2.3.2` | 8848/9848/9849 | standalone，外置 MySQL，命名空间 `dev` |
+| kafka | `apache/kafka:3.7.0` | 9094（宿主） | KRaft 单节点，内部 9092 |
+| kafka-ui | `ghcr.io/kafbat/kafka-ui:latest` | 8090 | 可选，Topic 可视化 |
+| xxl-job-admin | `xuxueli/xxl-job-admin:2.4.1` | 8088 | **host 网络**，连 `127.0.0.1:3306` |
+| redis | `redis:7-alpine` | 6379 | P5 限流用，尚未部署 |
+
+容器数据统一放在 `/home/zhq123/docker-data/<服务名>/`。当前环境没有 compose 插件，启动命令见 P0-02 / P0-03 / P0-04 文档。
 
 ### 6.2 Kafka 双 Listener（关键坑）
 
@@ -278,12 +328,17 @@ KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
 
 ### 6.4 XXL-JOB 回调网络（最容易卡住的点）
 
-调度中心在容器里，执行器在 Windows 上（业务服务内嵌 9999 端口），调度中心需要主动回调执行器：
+当前环境实测：
 
-- 执行器注册地址必须用「容器能访问到的 Windows 主机 IP」，不能用 `127.0.0.1`。
-- 若 WSL 使用默认 NAT 网络，容器访问 Windows 宿主机通常需要额外处理（如 `--add-host=host.docker.internal:host-gateway`，或直接填写 Windows 局域网 IP）。
-- 兜底方案：调度中心改为本地 `java -jar` 启动，直接连 WSL 的 MySQL，彻底绕开跨网络回调。
-- 先做一次最小验证：调度中心「执行一次」能收到执行器回调，再写业务任务。
+- WSL 访问 Windows 局域网 IP（如 `192.168.1.5`）会被防火墙拦截；
+- host 网络容器的 `127.0.0.1` 可以直通 Windows 本机的执行器端口。
+
+因此实际方案：
+
+- 调度中心使用 `--network host`，`--server.port=8088`，数据源 `127.0.0.1:3306`；
+- 执行器地址写 `http://127.0.0.1:9999/`，**必须带 `http://` 前缀**；
+- 验证方式：`docker run --rm --network host busybox nc -z -w 2 127.0.0.1 9999`；
+- 兜底方案：调度中心改为 Windows 本地 `java -jar`，与执行器同机，彻底绕开网络问题。
 
 ---
 
@@ -299,6 +354,9 @@ KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
 | Feign 自动重试导致重复下单 | 同一订单生成两条记录 | 关闭重试或加业务幂等键 |
 | Kafka 消费重复 | 库存被扣两次 | 业务幂等表 / Redis SETNX，手动 ack |
 | XXL-JOB 分片任务不幂等 | 多实例重复关单 | 状态机 + `update ... where status=CREATED` |
+| XXL-JOB 触发报 `no protocol` | 执行器地址漏了协议 | 写成 `http://127.0.0.1:9999/` |
+| Nacos 控制台看不到服务 | namespace 填了名称而非 ID | 统一使用命名空间 ID `dev` |
+| Kafka 多事件类型反序列化失败 | 消费端写死了 `default.type` | 使用事件类型头 + `trusted.packages` |
 | Nacos 配置不刷新 | 改了配置不生效 | `@RefreshScope` + 确认 dataId/group 匹配 |
 
 ---
@@ -318,17 +376,19 @@ KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
 
 ## 九、交付物
 
-1. 可一键启动的 `docker-compose.yml`（WSL）。
-2. 7 个 Maven 模块的完整工程，含 SQL 初始化脚本。
-3. 一份接口测试集合（curl 脚本或 HTTP 文件），覆盖下单、支付、超时关单、限流、鉴权。
-4. 一份「项目难点与取舍」说明，作为面试自述稿。
+1. 各中间件的 `docker run` 启动文档（当前环境无 compose 插件）。
+2. 9 个 Maven 模块（含父工程）的完整工程，SQL 已按服务拆分执行。
+3. 一份接口测试集合 `mall-cloud.http`，覆盖用户、商品、库存、订单、WMS、Nacos 查询。
+4. 一份「项目难点与取舍」说明，作为面试自述稿（待补）。
 
 ---
 
 ## 十、下一步
 
-规划确认后，按 P0 → P5 顺序落地，每个阶段完成即验收，不并行堆代码。可先调整的点：
+当前主链路（下单 → 支付 → 出库扣减、超时关单 → 释放）已经闭环，剩余工作：
 
-- 业务场景是否换成更贴近目标岗位的（如内容社区、外卖、票务）。
-- 是否需要把 Redis / Sentinel / Seata 提前纳入核心阶段。
-- 是否需要在项目里补一个简单前端（Vue3 + Element Plus）用于简历展示。
+1. **P5 鉴权与网关增强**：用户登录签发 JWT、网关全局过滤器、Redis 限流、跨域。
+2. **P5 配置与可观测**：Nacos Config 动态刷新、TraceId（MDC + Feign + Kafka header）、压测。
+3. **P2 收尾**：Feign `fallbackFactory`、日志级别、双实例负载均衡验证。
+4. **P6 可选**：Sentinel、Seata、Micrometer Tracing。
+5. 整理「项目难点与取舍」面试稿，重点：长预占模型、Kafka 幂等、事务提交后发消息、XXL-JOB 回调网络。
