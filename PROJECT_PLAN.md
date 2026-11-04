@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | P0 环境 | ✅ | JDK/Maven、Nacos（MySQL 存储）、Kafka（KRaft + Kafka UI）、XXL-JOB（host 网络）、MySQL 业务库已就绪 |
 | P1 骨架 | ✅ | 父 POM、`mall-common`、`mall-api`、网关，以及 user/product/stock/order/wms 五个服务全部注册 Nacos `dev` |
-| P2 Feign | 🟡 | 下单链路 order → product → stock、超时配置已完成；`fallbackFactory`、Feign 日志、双实例负载均衡验证未做 |
+| P2 Feign | ✅ | 下单链路 order → product → stock、超时、`fallbackFactory` 降级、Feign 日志、关闭 LB 重试、双实例负载均衡均已验证 |
 | P3 Kafka | ✅ | `order-created` / `order-shipped` / `order-cancelled`；库存消费发货事件并确认扣减，`CONFIRM` 幂等 + 手动 ack |
 | P4 XXL-JOB | ✅ | 订单内嵌执行器、超时关单任务；库存消费取消事件释放预占，`RELEASE` 幂等 |
 | P5 网关增强 | ⬜ | JWT 鉴权、Redis 限流、Nacos 配置中心、TraceId、压测均未开始 |
@@ -235,14 +235,14 @@ POST /api/order/create
 
 ### P2 同步调用链路（OpenFeign）
 
-> 当前状态：🟡 基础链路已完成。`order → product → stock` 已跑通，超时配置已加；剩余降级、日志和负载均衡验证。
+> 当前状态：✅ 已完成并验证。
 
 1. `mall-api` 定义 Feign 接口与 DTO。✅
 2. 下单接口串起 order → product → stock。✅
-3. 配置 Feign 超时、重试、日志级别、`fallbackFactory`。🟡 仅完成超时
-4. 启动两个 stock 实例（8090/8091）验证负载均衡。⬜
+3. 配置 Feign 超时、重试、日志级别、`fallbackFactory`。✅ → 操作指南：[P2-01 OpenFeign 降级](docs/P2-01-openfeign-fallback.md)
+4. 启动两个 stock 实例（8083/8091）验证负载均衡。✅
 
-**验收**：下单成功落库；手动停掉 product-service 后调用返回降级结果而不是 500；日志能看到 Feign 选择了不同实例。
+**验收**：下单成功落库；停掉 product-service 时下单返回 `503 依赖服务暂不可用，已触发降级` 而不是 500；日志能看到 Feign 请求与轮询到不同 stock 实例。
 
 ### P3 异步链路（Kafka）
 
@@ -389,6 +389,5 @@ KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
 
 1. **P5 鉴权与网关增强**：用户登录签发 JWT、网关全局过滤器、Redis 限流、跨域。
 2. **P5 配置与可观测**：Nacos Config 动态刷新、TraceId（MDC + Feign + Kafka header）、压测。
-3. **P2 收尾**：Feign `fallbackFactory`、日志级别、双实例负载均衡验证。
-4. **P6 可选**：Sentinel、Seata、Micrometer Tracing。
-5. 整理「项目难点与取舍」面试稿，重点：长预占模型、Kafka 幂等、事务提交后发消息、XXL-JOB 回调网络。
+3. **P6 可选**：Sentinel、Seata、Micrometer Tracing。
+4. 整理「项目难点与取舍」面试稿，重点：长预占模型、Kafka 幂等、事务提交后发消息、XXL-JOB 回调网络。
