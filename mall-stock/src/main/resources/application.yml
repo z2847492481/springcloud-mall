@@ -14,6 +14,20 @@ spring:
     url: jdbc:mysql://localhost:3306/mall_stock?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
     username: mall
     password: mall123456
+  kafka:
+    bootstrap-servers: localhost:9094
+    consumer:
+      group-id: mall-stock
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.mall.api.order.dto
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.mall.api.order.dto.OrderShippedEvent
+    listener:
+      ack-mode: manual_immediate
 
 mybatis-plus:
   configuration:

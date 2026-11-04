@@ -38,6 +38,12 @@ spring:
             - Path=/api/order/**
           filters:
             - StripPrefix=1
+        - id: mall-wms
+          uri: lb://mall-wms
+          predicates:
+            - Path=/api/wms/**
+          filters:
+            - StripPrefix=1
 
 management:
   endpoints:

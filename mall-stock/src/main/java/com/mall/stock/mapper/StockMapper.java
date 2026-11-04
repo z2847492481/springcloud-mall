@@ -24,4 +24,12 @@ public interface StockMapper extends BaseMapper<Stock> {
               AND locked >= #{quantity}
             """)
     int unlockStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
+
+    @Update("""
+            UPDATE t_stock
+            SET locked = locked - #{quantity}
+            WHERE product_id = #{productId}
+              AND locked >= #{quantity}
+            """)
+    int confirmStock(@Param("productId") Long productId, @Param("quantity") Integer quantity);
 }

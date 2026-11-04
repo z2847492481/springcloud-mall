@@ -60,7 +60,8 @@
 | `mall-user` | 8081 | 注册、登录、签发 JWT、用户信息 | `mall_user` |
 | `mall-product` | 8082 | 商品列表、详情、上下架 | `mall_product` |
 | `mall-stock` | 8083 | 库存查询、预占、扣减、回滚 | `mall_stock` |
-| `mall-order` | 8084 | 下单、支付回调、订单查询 | `mall_order` |
+| `mall-order` | 8084 | 下单、支付、发货状态、订单查询 | `mall_order` |
+| `mall-wms` | 8085 | 模拟仓库出库，确认发货并触发库存扣减 | `mall_wms` |
 | `mall-common` | - | 统一响应 `Result`、异常、常量、TraceId 工具 | 无 |
 | `mall-api` | - | 各服务的 Feign 接口 + 请求/响应 DTO | 无 |
 | `mall-parent` | - | 父 POM，统一依赖与版本 | 无 |
@@ -106,6 +107,7 @@
 | `mall_product` | `t_product` | id, name, price, stock_flag, status, create_time |
 | `mall_stock` | `t_stock` | id, product_id, available, locked, version |
 | `mall_order` | `t_order` | id, order_no, user_id, total_amount, status, create_time, pay_time |
+| `mall_wms` | `t_outbound` | id, order_no, status, create_time |
 | `mall_order` | `t_order_item` | id, order_id, product_id, price, quantity |
 
 - 每个服务独立库，符合「数据库按服务拆分」的面试讲法。
@@ -131,28 +133,34 @@ POST /api/order/create
 
 要练的点：Feign 接口定义在 `mall-api`、超时与重试配置、降级兜底、调用链 TraceId 透传。
 
-### 4.2 库存扣减（异步 Kafka）
+### 4.2 出库确认扣减（异步 Kafka）
 
 ```
-stock-service 消费 order-created
-  1. 按 orderNo 做幂等（t_stock_log 或 Redis SETNX）
-  2. 将 locked 库存真正扣掉
-  3. 手动提交 offset（ack 成功后再提交）
-  4. 失败进入重试 topic / 记录死信，避免无限重试阻塞分区
+1. 订单支付成功后状态为 PAID
+2. WMS 调用 order 的 ship 接口：PAID → SHIPPED
+3. WMS 发送 Kafka 消息 order-shipped（key = orderNo）
+4. stock-service 消费 order-shipped：
+   - t_stock_log 按 (CONFIRM, orderNo, productId) 幂等
+   - locked - quantity，真正扣减
+   - 手动 ack
 ```
 
-要练的点：消费组、分区与顺序（key 用 orderNo 保证同一订单进同一分区）、幂等、手动 ack、消息重复与丢失。
+预占库存会从下单一直保留到仓库发货，符合「长预占」模型。
+
+要练的点：消费组、分区与顺序、幂等、手动 ack、消息重复与丢失。
 
 ### 4.3 超时关单（XXL-JOB）
 
 ```
 每 2 分钟执行「关闭超时订单」任务
   1. 扫描 status=CREATED 且 create_time < now-15min 的订单
-  2. 逐条或批量更新为 CLOSED
-  3. 发送 order-cancelled 消息，stock-service 回滚预占库存
+  2. 更新为 CLOSED（以状态条件保证幂等）
+  3. 发送 order-cancelled 消息，stock-service 释放预占：
+     locked - n，available + n
 ```
 
-要练的点：调度中心与执行器注册、cron、阻塞策略、失败重试、分片广播（订单按 id 取模分片处理）、任务幂等。
+因为确认扣减发生在发货节点，超时取消时 `locked` 仍在，直接 `unlock` 即可。
+若订单已经发货，则需要走「退回库存」而不是释放预占，这是后续扩展点。
 
 ### 4.4 网关鉴权与限流
 
@@ -181,11 +189,11 @@ stock-service 消费 order-created
 
 ### P1 工程骨架 + 服务注册
 
-1. 建父 POM 与 7 个模块，统一依赖版本。→ 操作指南：[P1-01 父 POM](docs/P1-01-parent-pom-guide.md)、[P1-02 公共模块](docs/P1-02-common-api-modules.md)
-2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。→ 指南：[P1-04 mall-user](docs/P1-04-user-service.md)、[P1-05 mall-product](docs/P1-05-product-service.md)、[P1-06 mall-stock](docs/P1-06-stock-service.md)、[P1-07 mall-order](docs/P1-07-order-service.md)
+1. 建父 POM 与 8 个模块，统一依赖版本。→ 操作指南：[P1-01 父 POM](docs/P1-01-parent-pom-guide.md)、[P1-02 公共模块](docs/P1-02-common-api-modules.md)
+2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。→ 指南：[P1-04 mall-user](docs/P1-04-user-service.md)、[P1-05 mall-product](docs/P1-05-product-service.md)、[P1-06 mall-stock](docs/P1-06-stock-service.md)、[P1-07 mall-order](docs/P1-07-order-service.md)、[P1-08 mall-wms](docs/P1-08-wms-service.md)
 3. Gateway 接入 Nacos，配置按服务名路由。→ 操作指南：[P1-03 Gateway](docs/P1-03-gateway.md)
 
-**验收**：Nacos 服务列表出现 4 个服务；`http://localhost:8080/api/product/list` 能路由到商品服务；停掉某服务后 Nacos 实例消失。
+**验收**：Nacos 服务列表出现 5 个服务；`http://localhost:8080/api/product/list` 能路由到商品服务；停掉某服务后 Nacos 实例消失。
 
 ### P2 同步调用链路（OpenFeign）
 
@@ -198,12 +206,12 @@ stock-service 消费 order-created
 
 ### P3 异步链路（Kafka）
 
-1. 创建 topic：`order-created`、`order-cancelled`、`order-created-retry`（分区数 3）。
-2. order-service 生产消息（key=orderNo，带 traceId header）。
-3. stock-service 消费并幂等扣减，手动 ack。
+1. 创建 topic：`order-created`、`order-shipped`、`order-cancelled`（分区数 3）。
+2. order-service 生产 `order-created`，WMS 生产 `order-shipped`（key=orderNo）。
+3. stock-service 消费 `order-shipped` 并幂等扣减，手动 ack。→ 操作指南：[P3-01 Kafka 消费端](docs/P3-01-kafka-consumer.md)、[P3-02 出库扣减改造](docs/P3-02-ship-confirm.md)
 4. 故意重复投递一条消息，验证不会重复扣减。
 
-**验收**：下单后库存异步变化；重复消息只生效一次；消费者重启后消息不丢。
+**验收**：发货后库存异步变化；重复消息只生效一次；消费者重启后消息不丢。
 
 ### P4 定时调度（XXL-JOB）
 

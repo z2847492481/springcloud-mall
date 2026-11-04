@@ -40,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
 
     private static final String STATUS_CREATED = "CREATED";
     private static final String STATUS_PAID = "PAID";
+    private static final String STATUS_SHIPPED = "SHIPPED";
 
     private final ProductApi productApi;
     private final StockApi stockApi;
@@ -113,6 +114,24 @@ public class OrderServiceImpl implements OrderService {
                 .eq(Order::getStatus, STATUS_CREATED)
                 .set(Order::getStatus, STATUS_PAID)
                 .set(Order::getPayTime, LocalDateTime.now()));
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID);
+        }
+    }
+
+    @Override
+    public void ship(String orderNo) {
+        Order order = queryOrder(orderNo);
+        if (STATUS_SHIPPED.equals(order.getStatus())) {
+            return;
+        }
+        if (!STATUS_PAID.equals(order.getStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID);
+        }
+        int rows = orderMapper.update(null, new LambdaUpdateWrapper<Order>()
+                .eq(Order::getOrderNo, orderNo)
+                .eq(Order::getStatus, STATUS_PAID)
+                .set(Order::getStatus, STATUS_SHIPPED));
         if (rows == 0) {
             throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID);
         }

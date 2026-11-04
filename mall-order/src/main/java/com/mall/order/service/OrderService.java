@@ -10,4 +10,6 @@ public interface OrderService {
     OrderDTO getByOrderNo(String orderNo);
 
     void pay(String orderNo);
+
+    void ship(String orderNo);
 }

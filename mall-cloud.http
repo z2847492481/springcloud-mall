@@ -104,6 +104,12 @@ GET http://localhost:8084/order/{{orderNo}}
 ### 模拟支付（直连订单服务）
 POST http://localhost:8084/order/{{orderNo}}/pay
 
+### 订单发货（直连订单服务，模拟 WMS 内部调用）
+POST http://localhost:8084/order/{{orderNo}}/ship
+
+### 仓库确认出库（直连 WMS）
+POST http://localhost:8085/wms/outbound/{{orderNo}}
+
 ### 创建订单（经网关路由）
 POST http://localhost:8080/api/order/create
 Content-Type: application/json
@@ -124,6 +130,12 @@ GET http://localhost:8080/api/order/{{orderNo}}
 ### 模拟支付（经网关路由）
 POST http://localhost:8080/api/order/{{orderNo}}/pay
 
+### 订单发货（经网关路由）
+POST http://localhost:8080/api/order/{{orderNo}}/ship
+
+### 仓库确认出库（经网关路由）
+POST http://localhost:8080/api/wms/outbound/{{orderNo}}
+
 ### Nacos：查询 dev 命名空间下的服务列表
 GET http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=20&namespaceId=dev
 
@@ -138,3 +150,6 @@ GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-stock&names
 
 ### Nacos：查询 mall-order 实例
 GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-order&namespaceId=dev
+
+### Nacos：查询 mall-wms 实例
+GET http://localhost:8848/nacos/v1/ns/instance/list?serviceName=mall-wms&namespaceId=dev

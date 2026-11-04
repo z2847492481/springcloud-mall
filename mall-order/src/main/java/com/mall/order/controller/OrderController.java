@@ -35,4 +35,10 @@ public class OrderController {
         orderService.pay(orderNo);
         return Result.ok();
     }
+
+    @PostMapping("/{orderNo}/ship")
+    public Result<Void> ship(@PathVariable("orderNo") String orderNo) {
+        orderService.ship(orderNo);
+        return Result.ok();
+    }
 }
