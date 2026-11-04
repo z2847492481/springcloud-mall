@@ -25,7 +25,7 @@ public class CloseTimeoutOrderJob {
 
     private static final String STATUS_CREATED = "CREATED";
     private static final String STATUS_CLOSED = "CLOSED";
-    private static final int TIMEOUT_MINUTES = 15;
+    private static final int TIMEOUT_MINUTES = 1;
     private static final int BATCH_SIZE = 100;
 
     private final OrderMapper orderMapper;
