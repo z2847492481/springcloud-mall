@@ -42,6 +42,12 @@ client.global.set("token", response.body.data.token);
 ### 未携带 token 访问受保护接口（预期 401）
 GET http://localhost:8080/api/order/TEST-401
 
+### 跨域预检（预期返回 Access-Control-Allow-Origin）
+OPTIONS http://localhost:8080/api/user/1
+Origin: http://localhost:3000
+Access-Control-Request-Method: GET
+Access-Control-Request-Headers: Authorization
+
 ### 商品服务健康检查（直连）
 GET http://localhost:8082/actuator/health
 

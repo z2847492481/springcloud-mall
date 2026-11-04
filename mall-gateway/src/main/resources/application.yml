@@ -17,6 +17,24 @@ spring:
       discovery:
         locator:
           enabled: false
+      # 跨域：预检请求也要能命中，不依赖具体路由
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders:
+              - X-Trace-Id
+            allowCredentials: true
+            maxAge: 3600
       # 默认过滤器对所有路由生效：Redis 令牌桶限流
       default-filters:
         - name: RequestRateLimiter
