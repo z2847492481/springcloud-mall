@@ -24,8 +24,6 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: com.mall.api.order.dto
-        spring.json.use.type.headers: false
-        spring.json.value.default.type: com.mall.api.order.dto.OrderShippedEvent
     listener:
       ack-mode: manual_immediate
 

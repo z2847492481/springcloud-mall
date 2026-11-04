@@ -184,6 +184,7 @@ POST /api/order/create
 3. 初始化数据库：`mall_user`、`mall_product`、`mall_stock`、`mall_order`、`nacos_config`、`xxl_job`。
 4. 开放端口：8848/9848/9849、9092/9094、6379、8088、9999。
 5. Kafka 部署（KRaft 单节点 + 双 listener）→ 指南：[P0-03 Kafka](docs/P0-03-kafka-docker.md)
+6. XXL-JOB 调度中心部署（MySQL 存储）→ 指南：[P0-04 XXL-JOB](docs/P0-04-xxl-job-docker.md)
 
 **验收**：`mvn -v` 正常；Nacos 控制台能打开；Windows 侧可用 Kafka 客户端连接 `localhost:9094`；MySQL 四个库建好。
 
@@ -215,7 +216,7 @@ POST /api/order/create
 
 ### P4 定时调度（XXL-JOB）
 
-1. 部署调度中心，初始化 `xxl_job` 库。
+1. 部署调度中心，初始化 `xxl_job` 库。→ [P0-04 部署](docs/P0-04-xxl-job-docker.md)、[P4-01 接入与超时关单](docs/P4-01-xxl-job-integration.md)
 2. order-service 内嵌执行器，注册到调度中心。
 3. 编写「关闭超时订单」任务，cron 每 2 分钟，分片广播。
 4. 配置失败重试与阻塞策略，观察调度日志。

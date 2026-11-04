@@ -30,6 +30,19 @@ spring:
       properties:
         enable.idempotence: true
 
+xxl:
+  job:
+    admin:
+      addresses: http://localhost:8088/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: mall-order-executor
+      address: http://127.0.0.1:9999/
+      ip:
+      port: 9999
+      logpath: ./logs/xxl-job
+      logretentiondays: 30
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
