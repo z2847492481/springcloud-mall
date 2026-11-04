@@ -175,13 +175,14 @@ stock-service 消费 order-created
 2. 在 WSL 启动 Nacos（MySQL 外置存储），当前环境无 compose 插件，直接使用 `docker run`。→ 操作指南：[P0-02 Nacos 启动](docs/P0-02-nacos-docker-mysql.md)
 3. 初始化数据库：`mall_user`、`mall_product`、`mall_stock`、`mall_order`、`nacos_config`、`xxl_job`。
 4. 开放端口：8848/9848/9849、9092/9094、6379、8088、9999。
+5. Kafka 部署（KRaft 单节点 + 双 listener）→ 指南：[P0-03 Kafka](docs/P0-03-kafka-docker.md)
 
 **验收**：`mvn -v` 正常；Nacos 控制台能打开；Windows 侧可用 Kafka 客户端连接 `localhost:9094`；MySQL 四个库建好。
 
 ### P1 工程骨架 + 服务注册
 
 1. 建父 POM 与 7 个模块，统一依赖版本。→ 操作指南：[P1-01 父 POM](docs/P1-01-parent-pom-guide.md)、[P1-02 公共模块](docs/P1-02-common-api-modules.md)
-2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。→ 指南：[P1-04 mall-user](docs/P1-04-user-service.md)、[P1-05 mall-product](docs/P1-05-product-service.md)、[P1-06 mall-stock](docs/P1-06-stock-service.md)
+2. 四个业务服务接入 Nacos Discovery，暴露 `/actuator/health`。→ 指南：[P1-04 mall-user](docs/P1-04-user-service.md)、[P1-05 mall-product](docs/P1-05-product-service.md)、[P1-06 mall-stock](docs/P1-06-stock-service.md)、[P1-07 mall-order](docs/P1-07-order-service.md)
 3. Gateway 接入 Nacos，配置按服务名路由。→ 操作指南：[P1-03 Gateway](docs/P1-03-gateway.md)
 
 **验收**：Nacos 服务列表出现 4 个服务；`http://localhost:8080/api/product/list` 能路由到商品服务；停掉某服务后 Nacos 实例消失。
