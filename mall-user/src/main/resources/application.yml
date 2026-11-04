@@ -4,9 +4,16 @@ server:
 spring:
   application:
     name: mall-user
+  config:
+    # 共享配置从 Nacos 读取；optional 保证配置中心不可用时仍能启动
+    import:
+      - optional:nacos:mall-common.yaml
   cloud:
     nacos:
       discovery:
+        server-addr: localhost:8848
+        namespace: dev
+      config:
         server-addr: localhost:8848
         namespace: dev
   datasource:
@@ -22,12 +29,6 @@ mybatis-plus:
     db-config:
       id-type: auto
       table-prefix: t_
-
-mall:
-  jwt:
-    # HS256 密钥长度必须 >= 32 字节，后续迁移到 Nacos 配置中心
-    secret: mall-cloud-demo-jwt-secret-key-0123456789abcdef
-    expire-minutes: 120
 
 management:
   endpoints:

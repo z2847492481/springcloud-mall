@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: mall-gateway
+  config:
+    # 共享配置从 Nacos 读取；optional 保证配置中心不可用时仍能启动
+    import:
+      - optional:nacos:mall-common.yaml
   data:
     redis:
       host: localhost
@@ -11,6 +15,9 @@ spring:
   cloud:
     nacos:
       discovery:
+        server-addr: localhost:8848
+        namespace: dev
+      config:
         server-addr: localhost:8848
         namespace: dev
     gateway:
@@ -35,15 +42,6 @@ spring:
               - X-Trace-Id
             allowCredentials: true
             maxAge: 3600
-      # 默认过滤器对所有路由生效：Redis 令牌桶限流
-      default-filters:
-        - name: RequestRateLimiter
-          args:
-            redis-rate-limiter.replenishRate: 10
-            redis-rate-limiter.burstCapacity: 20
-            redis-rate-limiter.requestedTokens: 1
-            key-resolver: "#{@userKeyResolver}"
-            status-code: TOO_MANY_REQUESTS
       routes:
         - id: mall-user
           uri: lb://mall-user
@@ -75,12 +73,6 @@ spring:
             - Path=/api/wms/**
           filters:
             - StripPrefix=1
-
-mall:
-  jwt:
-    # 必须与 mall-user 保持一致，后续迁移到 Nacos 配置中心
-    secret: mall-cloud-demo-jwt-secret-key-0123456789abcdef
-    expire-minutes: 120
 
 management:
   endpoints:

@@ -26,6 +26,12 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
+        <!-- Nacos 配置中心：共享配置 + 动态刷新 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
         <!-- lb:// 协议依赖负载均衡器 -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

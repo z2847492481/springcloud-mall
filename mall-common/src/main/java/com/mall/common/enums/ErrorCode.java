@@ -12,6 +12,7 @@ public enum ErrorCode {
     NOT_FOUND(404, "资源不存在"),
     INTERNAL_ERROR(500, "系统繁忙，请稍后再试"),
     SERVICE_UNAVAILABLE(503, "依赖服务暂不可用，已触发降级"),
+    TOO_MANY_REQUESTS(429, "请求过于频繁，请稍后再试"),
 
     USER_NOT_FOUND(1001, "用户不存在"),
     PASSWORD_ERROR(1002, "用户名或密码错误"),

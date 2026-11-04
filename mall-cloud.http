@@ -175,6 +175,9 @@ Authorization: Bearer {{token}}
 POST http://localhost:8080/api/wms/outbound/{{orderNo}}
 Authorization: Bearer {{token}}
 
+### Nacos：查询 dev 命名空间下的共享配置
+GET http://localhost:8848/nacos/v1/cs/configs?dataId=mall-common.yaml&group=DEFAULT_GROUP&tenant=dev
+
 ### Nacos：查询 dev 命名空间下的服务列表
 GET http://localhost:8848/nacos/v1/ns/service/list?pageNo=1&pageSize=20&namespaceId=dev
 
